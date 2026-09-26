@@ -2,8 +2,8 @@
 
 An [Omarchy](https://omarchy.org) bar widget for [CLIAMP](https://cliamp.stream), the retro
 terminal music player. See what's playing at a glance and control playback without leaving
-your workflow — works with the CLIAMP TUI and with `cliamp --daemon` alike. When Spotify or
-YouTube playback is detected, the widget follows and controls those too.
+your workflow — works with the CLIAMP TUI and with `cliamp --daemon` alike. When Spotifast, Spotify
+or YouTube playback is detected, the widget follows and controls those too.
 
 ![The CLIAMP widget's popup, showing the now-playing track, transport controls, and the source picker](preview.png)
 
@@ -15,10 +15,10 @@ YouTube playback is detected, the widget follows and controls those too.
 - **Detail popup** — right click opens track details with album art, previous / play-pause /
   next / stop buttons, a progress bar for regular tracks, a LIVE badge for radio streams, and
   the current playlist position.
-- **Spotify and YouTube, when detected** — the Spotify desktop app and YouTube / YouTube Music
-  (in a browser or as a PWA) are picked up over MPRIS. The widget auto-follows whichever
-  source is playing, preferring cliamp, and the popup grows a picker to pin a source when more
-  than one is around.
+- **Spotifast, Spotify and YouTube, when detected** — Spotifast (formerly Fastpotify), the Spotify
+  desktop app, and YouTube / YouTube Music (in a browser or as a PWA) are picked up over MPRIS.
+  The widget auto-follows whichever source is playing, preferring cliamp, and the popup grows a picker
+  to pin a source when more than one is around.
 - **Party Mode** — turn the whole top bar into a beat-reactive synthwave light show, in your
   choice of a cliamp-style **spectrum visualizer** or a scrolling **gradient** wash. See below.
 - **Scriptable** — the plugin's service exposes IPC methods, so keybindings get the same
@@ -37,7 +37,7 @@ beat-reactive synthwave light show. Two styles, switchable from the popup or set
 
 The colours are derived from your active **Omarchy theme accent** and re-derive automatically
 when you switch themes. Playback drives the motion: cliamp gets the real spectrum, while
-Spotify and YouTube — which expose no audio data over MPRIS — get a lively synthetic
+Spotifast, Spotify and YouTube — which expose no audio data over MPRIS — get a lively synthetic
 visualizer that dances while they play and settles the moment they pause.
 
 The overlay is purely decorative: it never intercepts clicks, scrolls, or keyboard input on
@@ -49,7 +49,7 @@ persistent defaults live in the widget settings.
 - Omarchy with the plugin-capable shell (`omarchy plugin` available).
 - [`cliamp`](https://github.com/bjarneo/cliamp) on your `PATH`. The widget talks to the running
   instance through cliamp's own remote-control CLI, so no MPRIS proxy is needed.
-- Spotify and YouTube support needs nothing extra — those sources are detected through the
+- Spotifast, Spotify and YouTube support needs nothing extra — those sources are detected through the
   MPRIS players the apps already register.
 
 ## Install
@@ -70,7 +70,7 @@ Then place the **CLIAMP** widget in your bar from the Omarchy bar settings (cate
 | Right click | Open the detail popup |
 
 The widget dims to a note glyph while no media source is reachable. Start `cliamp` (or
-`cliamp --daemon` for headless playback), Spotify, or a YouTube tab and it lights back up
+`cliamp --daemon` for headless playback), Spotifast, Spotify, or a YouTube tab and it lights back up
 on the next poll. All controls target the active source, shown in the popup's picker.
 
 ### Settings
@@ -97,7 +97,7 @@ omarchy-shell cliamp next
 omarchy-shell cliamp previous
 omarchy-shell cliamp stop
 omarchy-shell cliamp status   # JSON playback state, including active/detected sources
-omarchy-shell cliamp source spotify   # pin a source: cliamp, spotify, or youtube
+omarchy-shell cliamp source spotifast  # pin a source: cliamp, spotifast, spotify, or youtube
 omarchy-shell cliamp party             # toggle Party Mode (also partyOn / partyOff)
 omarchy-shell cliamp partyStyle bars   # set style: bars or gradient (partyStyleToggle to flip)
 ```

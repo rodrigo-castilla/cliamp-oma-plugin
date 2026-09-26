@@ -6,9 +6,9 @@ import "Model.js" as Model
 
 // Headless singleton that owns all communication with the media sources. It
 // polls `cliamp status --json` on a timer and runs cliamp control commands,
-// and it also watches the session's MPRIS players for Spotify and YouTube so
-// the widget can show and control whichever source is actually playing.
-// Keeping the process handling here means every bar surface (one per
+// and it also watches the session's MPRIS players for Spotifast, Spotify and
+// YouTube so the widget can show and control whichever source is actually
+// playing. Keeping the process handling here means every bar surface (one per
 // monitor) reads the same state instead of each spawning its own pollers.
 Item {
   id: root
@@ -89,7 +89,7 @@ Item {
   // Smoothed 0..1 audio level driving the overall beat pulse, plus the smoothed
   // per-band spectrum driving the visualizer bars. Both are fed by cliamp's
   // band stream when it is the active playing source, and by a gentle synthetic
-  // wave otherwise so Spotify/YouTube still dance.
+  // wave otherwise so Spotifast/Spotify/YouTube still dance.
   property real partyLevel: 0.35
   property var bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -132,13 +132,16 @@ Item {
   // force the derived properties to recompute.
   property int _mprisRev: 0
 
+  readonly property var spotifastPlayer: findPlayer("spotifast", _mprisRev)
   readonly property var spotifyPlayer: findPlayer("spotify", _mprisRev)
   readonly property var youtubePlayer: findPlayer("youtube", _mprisRev)
 
   function findPlayer(kind, rev) {
     for (var i = 0; i < mprisPlayers.length; i++) {
       var p = mprisPlayers[i]
-      if (kind === "spotify" ? Model.isSpotifyPlayer(p) : Model.isYoutubePlayer(p)) return p
+      if (kind === "spotifast" ? Model.isSpotifastPlayer(p)
+        : kind === "spotify" ? Model.isSpotifyPlayer(p)
+        : Model.isYoutubePlayer(p)) return p
     }
     return null
   }
@@ -146,7 +149,7 @@ Item {
   // --------------------------------------------------------- source routing
 
   // The user's explicit source pin from the popup. Empty means auto-follow:
-  // whichever source is playing wins, in cliamp > Spotify > YouTube order.
+  // whichever source is playing wins, in cliamp > Spotifast > Spotify > YouTube order.
   property string preferredSource: ""
 
   // The source last controlled/played, so that after everything is paused the
@@ -159,16 +162,18 @@ Item {
   function pickActive() {
     var detected = {
       cliamp: available,
+      spotifast: spotifastPlayer !== null,
       spotify: spotifyPlayer !== null,
       youtube: youtubePlayer !== null
     }
     var playingNow = {
       cliamp: available && playing,
+      spotifast: !!(spotifastPlayer && spotifastPlayer.isPlaying),
       spotify: !!(spotifyPlayer && spotifyPlayer.isPlaying),
       youtube: !!(youtubePlayer && youtubePlayer.isPlaying)
     }
     if (preferredSource !== "" && detected[preferredSource]) return preferredSource
-    var order = ["cliamp", "spotify", "youtube"]
+    var order = ["cliamp", "spotifast", "spotify", "youtube"]
     for (var i = 0; i < order.length; i++) if (playingNow[order[i]]) return order[i]
     // Nothing is playing: stay on the source we last controlled if it's still
     // around, before falling back to priority order.
@@ -186,7 +191,8 @@ Item {
   onAnyPlayingChanged: if (!anyPlaying) _suppressResumeTrack = false
 
   function selectSource(kind) {
-    if (kind !== "cliamp" && kind !== "spotify" && kind !== "youtube") return false
+    if (kind === "fastpotify") kind = "spotifast"
+    if (kind !== "cliamp" && kind !== "spotifast" && kind !== "spotify" && kind !== "youtube") return false
     preferredSource = kind
     return true
   }
@@ -195,15 +201,17 @@ Item {
   // unexpectedly reassert itself when the source comes back later.
   readonly property bool _preferredDetected: preferredSource === ""
     || (preferredSource === "cliamp" ? available
+      : preferredSource === "spotifast" ? spotifastPlayer !== null
       : preferredSource === "spotify" ? spotifyPlayer !== null
       : youtubePlayer !== null)
   on_PreferredDetectedChanged: if (!_preferredDetected) preferredSource = ""
 
   // ----------------------------------------------------- unified now-playing
 
-  readonly property var activePlayer: activeSource === "spotify" ? spotifyPlayer
+  readonly property var activePlayer: activeSource === "spotifast" ? spotifastPlayer
+    : activeSource === "spotify" ? spotifyPlayer
     : activeSource === "youtube" ? youtubePlayer : null
-  readonly property bool anySource: available || spotifyPlayer !== null || youtubePlayer !== null
+  readonly property bool anySource: available || spotifastPlayer !== null || spotifyPlayer !== null || youtubePlayer !== null
   readonly property bool nowPlaying: activeSource === "cliamp" ? playing
     : !!(activePlayer && activePlayer.isPlaying)
   readonly property string nowTitle: activeSource === "cliamp" ? title
@@ -230,6 +238,11 @@ Item {
   function buildSources() {
     var list = []
     if (available) list.push({ kind: "cliamp", title: title, playing: playing })
+    if (spotifastPlayer) list.push({
+      kind: "spotifast",
+      title: String(spotifastPlayer.trackTitle || ""),
+      playing: !!spotifastPlayer.isPlaying
+    })
     if (spotifyPlayer) list.push({
       kind: "spotify",
       title: String(spotifyPlayer.trackTitle || ""),
@@ -319,8 +332,9 @@ Item {
   // ---------------------------------------------------------------- actions
 
   // True when more than one detected source is playing at the same time —
-  // e.g. cliamp and Spotify both producing audio.
+  // e.g. cliamp and Spotifast both producing audio.
   readonly property int _playingCount: (available && playing ? 1 : 0)
+    + (spotifastPlayer && spotifastPlayer.isPlaying ? 1 : 0)
     + (spotifyPlayer && spotifyPlayer.isPlaying ? 1 : 0)
     + (youtubePlayer && youtubePlayer.isPlaying ? 1 : 0)
   readonly property bool anyPlaying: _playingCount > 0
@@ -340,7 +354,7 @@ Item {
       runCliampVerb("pause")
       handled = true
     }
-    var others = [spotifyPlayer, youtubePlayer]
+    var others = [spotifastPlayer, spotifyPlayer, youtubePlayer]
     for (var i = 0; i < others.length; i++) {
       var p = others[i]
       if (!p || !p.isPlaying) continue
@@ -558,7 +572,7 @@ Item {
   }
 
   // Synthetic spectrum for sources without real band data. cliamp gets the
-  // true analyser via visstream; Spotify and YouTube can't expose one over
+  // true analyser via visstream; Spotifast, Spotify and YouTube can't expose one over
   // MPRIS, so while they play we animate a lively pseudo-spectrum that dances
   // and settles to near-flat the moment playback pauses.
   property real _wavePhase: 0

@@ -7,7 +7,7 @@ import "Model.js" as Model
 // Bar entry for CLIAMP: a play-state glyph plus a scrolling now-playing
 // label. Left click toggles play/pause, middle click skips ahead, the wheel
 // moves through the playlist, and right click opens a popup with full track
-// details and transport controls. When Spotify or YouTube playback is
+// details and transport controls. When Spotifast, Spotify or YouTube playback is
 // detected over MPRIS, the widget follows and controls whichever source is
 // active, with a picker in the popup.
 BarWidget {

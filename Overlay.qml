@@ -63,7 +63,7 @@ Item {
   readonly property color c3: root.h3
 
   // Live smoothed spectrum from the service (real for cliamp, synthetic for
-  // Spotify/YouTube). Sampled with interpolation so a handful of bands can
+  // Spotifast/Spotify/YouTube). Sampled with interpolation so a handful of bands can
   // drive a denser bar row.
   readonly property var bands: service ? service.bands : []
   function bandAt(frac) {

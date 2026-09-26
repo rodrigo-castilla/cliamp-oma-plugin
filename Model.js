@@ -53,8 +53,16 @@ function mprisUrl(player) {
   }
 }
 
+function isSpotifastPlayer(player) {
+  if (!player) return false
+  var id = (String(player.desktopEntry || "") + " " + String(player.identity || "") + " "
+    + String(player.dbusName || "")).toLowerCase()
+  return id.indexOf("spotifast") !== -1 || id.indexOf("fastpotify") !== -1
+}
+
 function isSpotifyPlayer(player) {
   if (!player) return false
+  if (isSpotifastPlayer(player)) return false
   var id = (String(player.desktopEntry || "") + " " + String(player.identity || "") + " "
     + String(player.dbusName || "")).toLowerCase()
   return id.indexOf("spotify") !== -1
@@ -189,13 +197,14 @@ function bandLevel(bands) {
 }
 
 function sourceLabel(kind) {
+  if (kind === "spotifast") return "Spotifast"
   if (kind === "spotify") return "Spotify"
   if (kind === "youtube") return "YouTube"
   return "CLIAMP"
 }
 
 function sourceIcon(kind, isStream) {
-  if (kind === "spotify") return "󰓇"
+  if (kind === "spotifast" || kind === "spotify") return "󰓇"
   if (kind === "youtube") return "󰗃"
   return isStream ? "󰐻" : "󰝚"
 }
