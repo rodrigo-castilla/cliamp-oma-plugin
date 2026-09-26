@@ -212,6 +212,20 @@ Item {
     return true
   }
 
+  function cycleSource(forward) {
+    var detected = []
+    if (available) detected.push("cliamp")
+    if (spotifyPlayer !== null) detected.push("spotify")
+    if (youtubePlayer !== null) detected.push("youtube")
+    if (detected.length <= 1) return false
+    var current = activeSource !== "" ? activeSource : detected[0]
+    var idx = detected.indexOf(current)
+    if (idx === -1) idx = 0
+    var step = forward ? 1 : -1
+    var nextIdx = (idx + step + detected.length) % detected.length
+    return selectSource(detected[nextIdx])
+  }
+
   // Drop a stale pin once its source disappears, so the pin doesn't
   // unexpectedly reassert itself when the source comes back later.
   readonly property bool _preferredDetected: preferredSource === ""
@@ -717,6 +731,14 @@ Item {
       return root.selectSource(kind) ? "ok" : "unhandled"
     }
 
+    function sourceNext(): string {
+      return root.cycleSource(true) ? "ok" : "unhandled"
+    }
+
+    function sourcePrevious(): string {
+      return root.cycleSource(false) ? "ok" : "unhandled"
+    }
+
     function party(): string {
       return root.toggleParty() ? "on" : "off"
     }
@@ -742,6 +764,57 @@ Item {
     function refresh(): string {
       root.refresh()
       return "ok"
+    }
+
+    function ping(): string {
+      return "ok"
+    }
+  }
+
+  // Intercepts the default media target (e.g. keyboard Play/Pause keys running
+  // `omarchy-shell media playPause`) so that media keys seamlessly control
+  // the active plugin source (Spotify, YouTube, CLIAMP).
+  IpcHandler {
+    target: "media"
+
+    function status(): string {
+      return root.statusJson()
+    }
+
+    function playPause(): string {
+      return root.runAction("playPause", true) ? "ok" : "unhandled"
+    }
+
+    function play(): string {
+      return root.runAction("play", true) ? "ok" : "unhandled"
+    }
+
+    function pause(): string {
+      return root.runAction("pause", true) ? "ok" : "unhandled"
+    }
+
+    function next(): string {
+      return root.runAction("next", true) ? "ok" : "unhandled"
+    }
+
+    function previous(): string {
+      return root.runAction("previous", true) ? "ok" : "unhandled"
+    }
+
+    function stop(): string {
+      return root.runAction("stop", true) ? "ok" : "unhandled"
+    }
+
+    function source(kind: string): string {
+      return root.selectSource(kind) ? "ok" : "unhandled"
+    }
+
+    function sourceNext(): string {
+      return root.cycleSource(true) ? "ok" : "unhandled"
+    }
+
+    function sourcePrevious(): string {
+      return root.cycleSource(false) ? "ok" : "unhandled"
     }
 
     function ping(): string {
