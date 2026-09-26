@@ -178,6 +178,18 @@ Item {
     // Nothing is playing: stay on the source we last controlled if it's still
     // around, before falling back to priority order.
     if (_resumeSource !== "" && detected[_resumeSource]) return _resumeSource
+    // If no resume source was recorded yet, pick whichever detected source has
+    // a track loaded, rather than defaulting to CLIAMP when CLIAMP is idle.
+    var mprisCandidates = [
+      { k: "spotifast", p: spotifastPlayer },
+      { k: "spotify", p: spotifyPlayer },
+      { k: "youtube", p: youtubePlayer }
+    ]
+    for (var t = 0; t < mprisCandidates.length; t++) {
+      var item = mprisCandidates[t]
+      if (item.p && String(item.p.trackTitle || "") !== "") return item.k
+    }
+    if (available && title !== "") return "cliamp"
     for (var j = 0; j < order.length; j++) if (detected[order[j]]) return order[j]
     return ""
   }
@@ -187,14 +199,39 @@ Item {
   // pause-all so the brief window where one source is still playing (while the
   // others stop) can't overwrite the captured resume source.
   property bool _suppressResumeTrack: false
-  onActiveSourceChanged: if (anyPlaying && !_suppressResumeTrack) _resumeSource = activeSource
-  onAnyPlayingChanged: if (!anyPlaying) _suppressResumeTrack = false
+
+  function updateResumeSource() {
+    if (_suppressResumeTrack) return
+    if (activeSource !== "") _resumeSource = activeSource
+  }
+
+  onActiveSourceChanged: if (anyPlaying) updateResumeSource()
+  onNowPlayingChanged: if (nowPlaying) updateResumeSource()
+  onAnyPlayingChanged: {
+    if (anyPlaying) updateResumeSource()
+    else _suppressResumeTrack = false
+  }
 
   function selectSource(kind) {
     if (kind === "fastpotify") kind = "spotifast"
     if (kind !== "cliamp" && kind !== "spotifast" && kind !== "spotify" && kind !== "youtube") return false
     preferredSource = kind
     return true
+  }
+
+  function cycleSource(forward) {
+    var detected = []
+    if (available) detected.push("cliamp")
+    if (spotifastPlayer !== null) detected.push("spotifast")
+    if (spotifyPlayer !== null) detected.push("spotify")
+    if (youtubePlayer !== null) detected.push("youtube")
+    if (detected.length <= 1) return false
+    var current = activeSource !== "" ? activeSource : detected[0]
+    var idx = detected.indexOf(current)
+    if (idx === -1) idx = 0
+    var step = forward ? 1 : -1
+    var nextIdx = (idx + step + detected.length) % detected.length
+    return selectSource(detected[nextIdx])
   }
 
   // Drop a stale pin once its source disappears, so the pin doesn't
@@ -313,6 +350,7 @@ Item {
     playbackState = parsed.playbackState
     // Reality caught up to the pending toggle — stop overriding.
     if (_desired !== -1 && (playbackState === "playing") === (_desired === 1)) _desired = -1
+    if (playbackState === "playing" && !root._suppressResumeTrack) root._resumeSource = "cliamp"
     title = parsed.title
     artist = parsed.artist
     album = parsed.album
@@ -617,7 +655,14 @@ Item {
       required property var modelData
       target: modelData
       function onMetadataChanged() { root._mprisRev++ }
-      function onIsPlayingChanged() { root._mprisRev++ }
+      function onIsPlayingChanged() {
+        root._mprisRev++
+        if (modelData && modelData.isPlaying && !root._suppressResumeTrack) {
+          if (Model.isSpotifastPlayer(modelData)) root._resumeSource = "spotifast"
+          else if (Model.isSpotifyPlayer(modelData)) root._resumeSource = "spotify"
+          else if (Model.isYoutubePlayer(modelData)) root._resumeSource = "youtube"
+        }
+      }
     }
   }
 
@@ -703,6 +748,14 @@ Item {
       return root.selectSource(kind) ? "ok" : "unhandled"
     }
 
+    function sourceNext(): string {
+      return root.cycleSource(true) ? "ok" : "unhandled"
+    }
+
+    function sourcePrevious(): string {
+      return root.cycleSource(false) ? "ok" : "unhandled"
+    }
+
     function party(): string {
       return root.toggleParty() ? "on" : "off"
     }
@@ -728,6 +781,57 @@ Item {
     function refresh(): string {
       root.refresh()
       return "ok"
+    }
+
+    function ping(): string {
+      return "ok"
+    }
+  }
+
+  // Intercepts the default media target (e.g. keyboard Play/Pause keys running
+  // `omarchy-shell media playPause`) so that media keys seamlessly control
+  // the active plugin source (Spotifast, Spotify, YouTube, CLIAMP).
+  IpcHandler {
+    target: "media"
+
+    function status(): string {
+      return root.statusJson()
+    }
+
+    function playPause(): string {
+      return root.runAction("playPause", true) ? "ok" : "unhandled"
+    }
+
+    function play(): string {
+      return root.runAction("play", true) ? "ok" : "unhandled"
+    }
+
+    function pause(): string {
+      return root.runAction("pause", true) ? "ok" : "unhandled"
+    }
+
+    function next(): string {
+      return root.runAction("next", true) ? "ok" : "unhandled"
+    }
+
+    function previous(): string {
+      return root.runAction("previous", true) ? "ok" : "unhandled"
+    }
+
+    function stop(): string {
+      return root.runAction("stop", true) ? "ok" : "unhandled"
+    }
+
+    function source(kind: string): string {
+      return root.selectSource(kind) ? "ok" : "unhandled"
+    }
+
+    function sourceNext(): string {
+      return root.cycleSource(true) ? "ok" : "unhandled"
+    }
+
+    function sourcePrevious(): string {
+      return root.cycleSource(false) ? "ok" : "unhandled"
     }
 
     function ping(): string {

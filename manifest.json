@@ -6,6 +6,9 @@
   "author": "Brian Scott",
   "license": "MIT",
   "description": "Now-playing display and playback controls for the CLIAMP terminal music player, with Spotifast, Spotify and YouTube support and a beat-reactive synthwave Party Mode for the bar",
+  "omarchy": {
+    "clonedFrom": "omarchy.media"
+  },
   "kinds": [
     "service",
     "bar-widget",
