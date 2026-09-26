@@ -173,6 +173,17 @@ Item {
     // Nothing is playing: stay on the source we last controlled if it's still
     // around, before falling back to priority order.
     if (_resumeSource !== "" && detected[_resumeSource]) return _resumeSource
+    // If no resume source was recorded yet, pick whichever detected source has
+    // a track loaded, rather than defaulting to CLIAMP when CLIAMP is idle.
+    var mprisCandidates = [
+      { k: "spotify", p: spotifyPlayer },
+      { k: "youtube", p: youtubePlayer }
+    ]
+    for (var t = 0; t < mprisCandidates.length; t++) {
+      var item = mprisCandidates[t]
+      if (item.p && String(item.p.trackTitle || "") !== "") return item.k
+    }
+    if (available && title !== "") return "cliamp"
     for (var j = 0; j < order.length; j++) if (detected[order[j]]) return order[j]
     return ""
   }
@@ -182,8 +193,18 @@ Item {
   // pause-all so the brief window where one source is still playing (while the
   // others stop) can't overwrite the captured resume source.
   property bool _suppressResumeTrack: false
-  onActiveSourceChanged: if (anyPlaying && !_suppressResumeTrack) _resumeSource = activeSource
-  onAnyPlayingChanged: if (!anyPlaying) _suppressResumeTrack = false
+
+  function updateResumeSource() {
+    if (_suppressResumeTrack) return
+    if (activeSource !== "") _resumeSource = activeSource
+  }
+
+  onActiveSourceChanged: if (anyPlaying) updateResumeSource()
+  onNowPlayingChanged: if (nowPlaying) updateResumeSource()
+  onAnyPlayingChanged: {
+    if (anyPlaying) updateResumeSource()
+    else _suppressResumeTrack = false
+  }
 
   function selectSource(kind) {
     if (kind !== "cliamp" && kind !== "spotify" && kind !== "youtube") return false
@@ -300,6 +321,7 @@ Item {
     playbackState = parsed.playbackState
     // Reality caught up to the pending toggle — stop overriding.
     if (_desired !== -1 && (playbackState === "playing") === (_desired === 1)) _desired = -1
+    if (playbackState === "playing" && !root._suppressResumeTrack) root._resumeSource = "cliamp"
     title = parsed.title
     artist = parsed.artist
     album = parsed.album
@@ -603,7 +625,13 @@ Item {
       required property var modelData
       target: modelData
       function onMetadataChanged() { root._mprisRev++ }
-      function onIsPlayingChanged() { root._mprisRev++ }
+      function onIsPlayingChanged() {
+        root._mprisRev++
+        if (modelData && modelData.isPlaying && !root._suppressResumeTrack) {
+          if (Model.isSpotifyPlayer(modelData)) root._resumeSource = "spotify"
+          else if (Model.isYoutubePlayer(modelData)) root._resumeSource = "youtube"
+        }
+      }
     }
   }
 
